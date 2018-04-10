@@ -10,6 +10,7 @@ const BrotliPlugin = require('brotli-webpack-plugin');
 var webpackConfig = {
     name:"client",
     entry: {
+        vendors: ["react", "lodash"],
         main: [
             "./src/main.js"
         ],
@@ -19,7 +20,9 @@ var webpackConfig = {
 
     output: {
         filename: "[name]-bundle.js",
-        path: path.resolve(__dirname, "../dist")
+        chunkFilename: "[name].js",
+        path: path.resolve(__dirname, "../dist"),
+        publicPath: "/"
     },
     
     devServer: {
@@ -58,21 +61,28 @@ var webpackConfig = {
             },
             { 
                 test: /\.scss$/,
-                use:[
-                    {loader: "style-loader"},
-                    {
+                use:ExtractTextPlugin.extract({
+                    fallback: "style-loader",    
+                    use:[{
                         loader: "css-loader",
+                        options: {
+                            sourceMap: true,
+                            minimize:true
+                        }
+                    }, //css para js
+                    {
+                        loader: "postcss-loader",
                         options: {
                             sourceMap: true
                         }
-                    }, //css para js
+                    },
                     {
                         loader: "sass-loader", //transpila sass para css
                         options: {
                             sourceMap:true,
                         }
-                    }
-                ]
+                    }]
+                })
             },
             { //loader para as imagens
                 test: /\.(jpg|gif|png)$/,
@@ -108,13 +118,7 @@ var webpackConfig = {
             },
             canPrint: true
         }),
-        /*
-        new HTMLWebpackPlugin({
-            template: "./src/index.ejs",
-            inject: true,
-            title: "Link's Journal"
-        }),
-        */
+        
         new webpack.DefinePlugin({
             "process.env":{
                 NODE_ENV: JSON.stringify("production")

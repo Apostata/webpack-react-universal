@@ -1,7 +1,7 @@
 const path = require('path');
 const webpack = require('webpack');
 const ExtractTextPlugin = require("extract-text-webpack-plugin");
-const nodeExternals = require('webpack-node-externals');
+import externals from './node-externals';
 
 var webpackConfig = {
     name:"server",
@@ -9,7 +9,7 @@ var webpackConfig = {
     mode: "production",
     target: "node",
 
-    externals: nodeExternals(), // ignorar nod_modules
+    externals,
 
     output: {
         filename: "prod-server-bundle.js",
@@ -20,7 +20,6 @@ var webpackConfig = {
     optimization:{
         splitChunks:{
             chunks: "all",
-            automaticNameDelimiter: "-",
             cacheGroups:{
                 vendors:{
                     name:"vendors",
@@ -42,16 +41,27 @@ var webpackConfig = {
                 ],
                 exclude: /node_modules/
             },
-            { 
+            {
                 test: /\.scss$/,
                 use:[
-                    {loader: "style-loader"},
+                    {loader: "style-loader",
+                        options: {
+                            sourceMap:true,
+                        }
+                    },
                     {
-                        loader: "css-loader",
+                    loader: "css-loader",
+                        options: {
+                            sourceMap: true,
+                            minimize:true
+                        }
+                    }, //css para js
+                    {
+                        loader: "postcss-loader",
                         options: {
                             sourceMap: true
                         }
-                    }, //css para js
+                    },
                     {
                         loader: "sass-loader", //transpila sass para css
                         options: {
@@ -85,8 +95,10 @@ var webpackConfig = {
         ]
     },
     plugins:[
-        
-        new ExtractTextPlugin("[name].css"),
+        new webpack.optimize.LimitChunkCountPlugin({
+            maxChunks: 1
+          }),
+        //new ExtractTextPlugin("[name].css"),
         
         new webpack.DefinePlugin({
             "process.env":{

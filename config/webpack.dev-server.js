@@ -1,14 +1,15 @@
 const path = require('path');
 const webpack = require('webpack');
 const ExtractTextPlugin = require("extract-text-webpack-plugin");
-var nodeExternals = require("webpack-node-externals")
+const nodeExternals = require("webpack-node-externals")
+import externals from './node-externals';
 
 var webpackConfig = {
     
     entry: "./src/server/render.js",
     name:"server",
     target: "node",
-    externals: nodeExternals(), // ignorar nod_modules
+    externals, //externals : externals
     mode: "development",
 
     output: {
@@ -33,31 +34,31 @@ var webpackConfig = {
               }
             ]
           },
-          { 
+          {
               test: /\.scss$/,
-              use:ExtractTextPlugin.extract({
-                fallback: "style-loader",    
-                use:[{
-                    loader: "css-loader",
-                    options: {
-                        sourceMap: true,
-                        minimize:true
-                    }
-                }, //css para js
-                {
-                    loader: "postcss-loader",
-                    options: {
-                        sourceMap: true
-                    }
-                },
-                {
-                    loader: "sass-loader", //transpila sass para css
-                    options: {
-                        sourceMap:true,
-                    }
-                }]
-              })
-            },
+              use:[
+                  {loader: "style-loader"},
+                  {
+                  loader: "css-loader",
+                  options: {
+                      sourceMap: true,
+                      minimize:true
+                  }
+                  }, //css para js
+                  {
+                      loader: "postcss-loader",
+                      options: {
+                          sourceMap: true
+                      }
+                  },
+                  {
+                      loader: "sass-loader", //transpila sass para css
+                      options: {
+                          sourceMap:true,
+                      }
+                  }
+              ]
+          },
             { //loader para as imagens
                 test: /\.(jpg|gif|png)$/,
                 use:[
@@ -82,7 +83,8 @@ var webpackConfig = {
         ]
       },
       plugins: [
-        new ExtractTextPlugin("[name].css"),
+        
+        //new ExtractTextPlugin("[name].css"),
         new webpack.DefinePlugin({
           "process.env": {
             NODE_ENV: JSON.stringify("development")
