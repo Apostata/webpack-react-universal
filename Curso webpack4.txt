@@ -1,0 +1,801 @@
+Curso de webpack 4 
+    instalar webpack : npm install -g webpack
+            recomendado instalar local sem o -g
+    
+    instalar o webpack-dev-server e webpack-cli
+            o weboack ed webpack-dev-server deve ser instlado global também "-g"
+        
+    
+    rodando o webpack:
+        webpack --mode=development -> em modo de desenvolvimento
+        webpack --mode=production -> modo de produção -> arquivo menor
+    
+
+    usando configuração personalizada:
+        paramentros principais de um arquivo de configuração (webpack.dev.js):
+            module exports ={
+                entry:{},
+                mode: "", //somente em webpack 4
+                output: {},
+                module:{} //loaders
+            }
+
+        exemplo de arquivo de configuração:
+            const path = require('path');
+            module.exports = {
+                entry: {
+                    main: "./src/main.js"              //arquivo de entrada
+                },
+                mode: "development",                   // modo  
+                output:{
+                    filename: "[name]-bundle.js",       //nome de saida
+                    path: path.resolve(__dirname, "../dist"), //caminho de saida
+                    publicPath:"/"                              // pasta de saida
+                },
+                devServer:{                 //servidor de desenvolvimento(teste)
+                    contentBase:"dist"      //conteudo a ser carregado
+                }   
+            }
+
+        Rodando o webpack com configuração personalizada
+            webpack --config={caminho}/webpack.dev.js (arquivo de configuração)
+
+
+        rodando webpack com arquivo de configuração em sevidor de desenvolvimento:
+            webpack-de-server --config={caminho}/webpack.dev.js
+
+        Devserver:
+            ...
+            devServer:{
+                contentBase:"dist", // de onde usará os arquivos 
+                overlay: true       //para aparecer os erros na tela no browser, não somente no console dele
+            },
+
+            DEVSERVER NÃO GERA BUNDLES ELE GUARDA OS RESULTADOS NA MEMÓRIA
+
+            mais a frete customizaremos o Devserver para usar express para maior controle e flexibilidade.
+        
+        Modules
+            Css Loaders:
+                ...
+                module:{
+                    rules:[
+                        {
+                            test: /\.css$/, //arquivos terminados em .css
+                            use:[
+                                {loader: "style-loader"}, //transcrever para styles
+                                {loader: "css-loader"}      //usar o loader para css
+                            ]
+                        },
+                    ]
+                }
+
+            
+
+            Html Loader:
+                module:{
+                    rules:[
+                    ...
+                        {
+                            test:/\.html$/,
+                            use:[
+                                {
+                                    loader:"file-loader",
+                                    options:{
+                                        name: "[name].[ext]" //definindo o nome de saida para o igual ao de entrada
+                                    },
+                                },
+                                {
+                                    loader: "extract-loader", //separar em outr arquivo
+                                    options:{
+                                        publicPath:"../"        //pasta ?
+                                    },
+                                },
+                                {
+                                    loader: "html-loader"
+                                }
+                            [
+                        }
+                    ]
+                }
+
+
+            Images Loader:
+                module:{
+                    rules:[
+                    ...
+                        {
+                            test: /\.(jpg|gif|png)$/,
+                            use:[
+                                {
+                                    loader: "file-loader",
+                                    options:{
+                                    // name:"images/[name]-[hash:8].[ext]"  //adicionando hach de oito digitos na imagem compilada
+                                    name:"images/[name].[ext]"              // saida da imagem compilada
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+            javascript loaders (babel, react e etc...):
+                para transpilar o códigos es6, react e etc:
+                    instalar baber-core e babel-cli
+                    para ensiar o webpack a transpilar o codigo, instalar o babel-loader
+                    para usar a import do es6, instalar o babel-register
+                    babel-plugin-transform-runtime para verificar automáticamente qual é polyfill que 
+                    será usado pelo código, como promises ou map.
+
+                module:{
+                    ...
+                    rules:[
+                        {//loaders para javascript
+                            test: /\.js$/,
+                            use:[
+                                {
+                                    loader: "babel-loader" //usa babel-loader para transpilar o código em js para browsers antigos
+                                }
+                            ],
+                            exclude: /node_modules/
+                        },
+                    ]
+                }
+
+                babel transforma o código moderno como es6 ou es7 em es5. No webpack toda transformação de código é feita por plugins
+                para isso o babel usar um arquivo chamado .babelrc (localizado na raiz normalmente)
+
+                .balberc:
+                    {
+                        "presets":[ //pacotes pré-setados
+                            [
+                                "env",{ //ambiente
+                                    "targets":{
+                                        "browsers":["last 2 versions"]
+                                    },
+                                    "debug": true //debugando
+                                }
+                            ]
+                        ],
+                        "plugins":["transform-runtime"] //transforma dinamicamente es6 e es7 em es5 adiciona automaticamente require("babel-runtime/regenerator") nos arquivosjs
+                    }
+
+        Devserver (customizando com Express):
+            instalar o nodemom globalmente           // recarregamento do servidor
+            instalar o express: npm install express  //para criação e execução de serivdores
+            instalar o webpack-dev-middleware        //para usar os bundles do como arquivos do servidor (usado somento em embiente de desenvolvimento)
+            instalar o html-webpack-plugin           //para reconhecimento do html no bundle e no reload
+            instalar o webpack-hot-middleware        //para recarregamento do servidor e/ou cliente ao salvar arquivos
+
+            no arquivo de configuração do webpack:
+            ...
+            plugins:[
+                ...
+                new webpack.HotModuleReplacementPlugin(),
+                new HTMLWebpackPlugin({
+                    template: "./src/index.html"
+                })
+            ]
+
+            criar uma pasta para armazenar as configurações do servidor (no caso pasta server)
+            adicionar o arquivo:
+
+            main.js
+
+                require('babel-register');  //para usar o import a sintaxe do es6
+                require('./express');       //importa o arquivo de configuração so servidor.
+            
+            express.js
+
+                import express from 'express';
+                import path from 'path';
+
+                import webpack from 'webpack';
+                import config from '../../config/webpack.config.js';
+                import webpackDevMiddleware from 'webpack-dev-middleware';
+                import webpackHotMiddleware from 'webpack-hot-middleware';
+
+                const compiler = webpack(config);
+
+                const staticMiddleware = express.static("dist");
+                const webpack_hot_middleware = webpackHotMiddleware(compiler);
+                const webpack_dev_middleware = webpackDevMiddleware(compiler, config.devServer);
+
+                const server = express();
+
+                server.use(webpack_dev_middleware); //usar as configurações de devserver do webpack config
+                server.use(webpack_hot_middleware); //usar live reload USAR SEMPRE DEPOIS DO DEV MIDDLEWARE
+                server.use(staticMiddleware);
+
+                server.listen(9001, ()=>{
+                    console.log('server rodando na porta 9001');
+                });
+
+            no arquivo package.json:
+                "dev": "nodemon --inspect --watch config --watch src/server src/server/main.js",
+                node ira reiniciar assim que houver mudanças nas pastas config, server e dependencias
+
+        React:
+            para usarr react com o webpack:
+            npm install react react-dom
+            npm install webpack-hot-middleware@next //para o autoreaload
+            
+            .balberc
+                {
+                "presets":[
+                    ...
+                    "babel-preset-react"
+                ],
+                "plugins":["transform-runtime"]
+            }
+
+            Reload React states:
+            npm install react-hot-loader@next
+
+            no arquivo app.js:
+                import React from "react"
+                import ReactDOM from "react-dom"
+                import Counter from "./counter"
+                import { AppContainer } from "react-hot-loader"
+
+                function render(Component) {
+                    ReactDOM.render(
+                        <AppContainer>
+                        <Component />
+                        </AppContainer>,
+                        document.getElementById("react-root")
+                    )
+                }
+                render(Counter)
+
+                if (module.hot) {
+                    module.hot.accept("./counter.js", () => {
+                        const NewCounter = require("./counter.js").default
+                        render(NewCounter)
+                    })
+                }
+        
+        Typescript:
+            para usar Typescript com webpack:
+                npm install typescript ts-loader;
+
+                Criar um arquivo de configuração do typescript:
+                tsconfig.json:
+                    {
+                        "compilerOptions": {
+                            "sourceMap": true,
+                            "noImplicitAny": true,          //deixa definir o tipo "any"
+                            "module": "es6",                //modelo de carregamento de modulo
+                            "moduleResolution": "node",     //search in node_modules folder
+                            "target": "es5",                //verão de saida do javascript
+                            "allowJs": true,                //permite arquivos .js,
+
+                            "jsx": "react",                 //permite o uso do jsx com o typescript (usado no react)
+                            "experimentalDecorators": true, //adiciona suporte para o Es Decorators (usado no angular)
+                            "emitDecoratorMetadata": true,  // emite metadata para decorators (usado no angular)
+                            "lib": ["es5", "es6", "dom"]    //carrega estas libs para que seja transpilado (usado no angular)
+                        },
+                        "compileOnSave": "false"
+                    }
+
+                no arquivo de configuração do Webpack
+                    webpack.dev.js:
+                    ...
+                    entry:{
+                        main:["./src/main.js"],
+                        ts:["./src/index.ts"]
+                    }
+                    ...
+                    module:{
+                        rules:[
+                            ...
+                            {
+                                test: /\.ts$/,
+                                exclude? /node_modules/
+                            }
+                        ]
+                    }
+        
+        Angular (5):
+            npm i @angular/core 
+                @angular/common 
+                @angular/compiler 
+                @angular/platform-browser 
+                @angular/platform-browser-dynamic 
+                @angular/http 
+                @angular/router 
+                @angular/forms 
+                rxjs 
+                refelct-metadata 
+                zone.js
+
+            npm i --save-dev @types/node, @types/core-js
+
+            criar os arquivos:
+            angular.ts:
+                import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
+                import { AppModule } from "./components/app/app.module";
+                platformBrowserDynamic().bootstrapModule(AppModule);
+
+            angular.polyfills.ts:
+                require("webpack-hot-middleware/client?reload=true")
+                import "core-js/es6"
+                import "reflect-metadata"
+                import "zone.js/dist/zone"
+            
+            no arquivo de configuração do Webpack
+                    webpack.dev.js:
+                    ...
+                    entry:{
+                        main:["./src/main.js"],
+                        polyfills:["./src/angular-polyfills.ts"], 
+                        angular:["./src/angular.ts"]
+                    }
+                    ...
+                    devServer: {
+                        contentBase: "dist",
+                        historyApiFallback: true, //para que as rotas do angular funcionem
+                        overlay: true,
+                        hot: true, //live reoald
+                        stats:{
+                            colors: true
+                        }
+                    },
+                    ...
+                    plugins:[
+                        new webpack.HotModuleReplacementPlugin(),
+                        new webpack.ContextReplacementPlugin(
+                            /angular(\\|\/)core/, //onde tiver angular/core (barras tratatas para para os sistemas de arquivos windows e mac)
+                            path.join(__dirname, "./src"), 
+                            {}
+                        ), //o angular irá tratar como importar os módulos 
+                        new HTMLWebpackPlugin({
+                            template: "./src/index.html"
+                        })
+                    ]   
+            
+            possivelmente por alguma incompatibilidade de versão
+            os components tem que ser carrregados assim:
+
+                app.component.ts:
+                    @Component({
+                        selector: "root-app",
+                        styles: [require("./app.component.css").toString()],
+                        template: require("./app.component.html")             
+                    })
+                    
+                    export class AppRoot {
+                    ...
+                    }
+
+                o correto seria:
+                     @Component({
+                        selector: "root-app",
+                        stylesUrl: "./app.component.css",
+                        templateUrl: "./app.component.html"             
+                    })
+
+        Preparando para produção (Heroku):
+            ATENÇÃO: usuários de windows installar :npm install -g win-node-env
+            para que as variáveisde ambiente sejam reconhecidas no package.json
+
+            criar ou ter uma conta no Heroku (https://www.heroku.com/)
+            baixar a CLI(command line interface) do heroku: https://devcenter.heroku.com/articles/heroku-cli
+            
+            criar o arquivo Procfile (sem extensão mesmo)
+            com o código que deve ser rodado no servidor.
+            <process type>: <commands>
+                process type    – an alphanumeric string, is a name for your command, such as web, worker, 
+                command         – a command line to launch the process, such as rake jobs:work.
+           
+            No caso:
+                web: npm run prod
+
+            Remover os hot-middleware e o babel-runtime/ regenerator do main.js 
+            Remover o plugin webpack.HotModuleReplacementPlugin() do arquive de configuração do webpack;
+
+            Heroku localmente:
+                instalar o dotenv para simular as variáveis de ambiente localmente
+                npm install dotenv --save
+
+                criar um arquivo .env com a variável de ambiente desejada
+
+                neste caso:
+                    NODE_ENV=production
+
+                para iniciar o servidor: 
+                    heroku local
+            
+                Arquivo de configuração do webpack para produção:
+                    const path = require('path');
+                    const webpack = require('webpack');
+                    const HTMLWebpackPlugin = require('html-webpack-plugin');
+                    const ExtractTextPlugin = require("extract-text-webpack-plugin");
+                    const OptimizeCssAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+
+                    var webpackConfig = {
+                        entry: {
+                            main: [
+                                "./src/main.js"
+                            ]
+                        },
+        
+                        mode: "development",
+        
+                        output: {
+                            filename: "[name]-bundle.js",
+                            path: path.resolve(__dirname, "../dist")
+                        },
+                
+                        devServer: {
+                            contentBase: "dist",
+                            overlay: true,
+                            hot: true, //live reoald
+                            stats:{
+                                colors: true
+                            }
+                        },
+                    
+                        module:{
+                            rules:[
+                                {//loaders para javascript
+                                    test: /\.js$/,
+                                    use:[{
+                                        loader: "babel-loader"
+                                    }],
+                                    exclude: /node_modules/
+                                },
+
+                                { //loader para o css
+                                    test: /\.css$/,
+                                    use:ExtractTextPlugin.extract({
+                                        fallback: "style-loader",
+                                        use:{
+                                            loader:"css-loader",
+                                            options:{
+                                                minimize: true
+                                            }
+                                        }
+                                    })
+                                },
+                    
+                                { //loader para o html
+                                    test:/\.html$/,
+                                    use:[{
+                                        loader: "html-loader",
+                                        options:{
+                                            attrs:["img:src"]
+                                        }
+                                    }]
+                                },
+                    
+                                { //loader para as imagens
+                                    test: /\.(jpg|gif|png)$/,
+                                    use:[{
+                                        loader: "file-loader",
+                                        options:{
+                                        name:"images/[name]-[hash:8].[ext]"
+                                        }
+                                    }]
+                                }
+                            ]
+                        },
+                    
+                        plugins:[
+                            new OptimizeCssAssetsPlugin({
+                                assetsNameRegExp:/\.css$/g,
+                                cssProcessor: require("cssnano"),
+                                cssProcessorOptions:{
+                                    discardComments:{ removeAll: true}
+                                },
+                                canPrint: true
+                            }),
+                            new ExtractTextPlugin("[name].css"),
+                            new HTMLWebpackPlugin({
+                                template: "./src/index.html",
+                                //inject: false //não coloca automáticamente o css e js no html
+                            })
+                        ]   
+                    };
+                    module.exports = webpackConfig;
+
+
+            Otimizando CSS para produção:
+                npm install extract-webpack-plugin //para extrair o css do bundle
+                npm install optimize-ccs-assets-webpack-plugin // para minificação do css e otimização de duplicidades
+                npm install postcss-loader //para gerar dinamicamente regras para crossbrowser
+
+                no arquivo de configuração para do webpack para produção, colocar:
+                    const ExtractTextPlugin = require("extract-text-webpack-plugin");
+                    const OptimizeCssAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+
+                    caso a entrada seja em css:
+                        ...
+                        module:{
+                            rules:[
+                                test: /\.css$/,
+                                use:ExtractTextPlugin.extract({
+                                    fallback: "style-loader",
+                                    use:{
+                                        loader:"css-loader",
+                                        options:{
+                                            minimize: true
+                                        }
+                                    }
+                                })
+                            ]
+                        }
+                        ...
+                    
+                    caso seja scss:
+                         ...
+                        module:{
+                            rules:[
+                                test: /\.scss$/,
+                                use:ExtractTextPlugin.extract({
+                                    fallback: "style-loader",  
+                                    use:[{
+                                        loader: "css-loader",
+                                        options: {
+                                            sourceMap:true,
+                                            minimize: true
+                                        }
+                                    },
+                                    {   //gera automáticamente regras de compatibilidade para cross browsers 
+                                        loader: "postcss-loader",
+                                        options: {
+                                            sourceMap: true
+                                        }
+                                    }, 
+                                    {   //transpila sass para css
+                                        loader: "sass-loader", 
+                                        options: {
+                                            sourceMap:true
+                                        }
+                                    }]
+                                })
+                            ]
+                        }
+                        ...
+                    
+                    adicionar plugins ao arquivo de configuração do webpack
+                         ...
+                         plugins:[
+                            ...
+                            new ExtractTextPlugin("[name].css"),
+                            new OptimizeCssAssetsPlugin({
+                                assetsNameRegExp:/\.css$/g,
+                                cssProcessor: require("cssnano"),
+                                cssProcessorOptions:{
+                                    discardComments:{ removeAll: true}
+                                },
+                                canPrint: true
+                            }),
+                            ...           
+                        ]
+                        ...
+                
+                criar um arquivo de configuração do postcss,
+                postcss.config.js
+                
+                module.exports = {
+                    plugins:[require("autoprefixer")] //para colocar automáticamente o ov prefixos dos vendors (exemplo: -webkit, -moz)
+                }
+
+
+            Otimizando JS para produção:
+                npm install -g babel-minify
+                npm install babel-minify-webpack-plugin //para que o babel-minify funcione com webpack
+
+                no arquivo de configuração do webpack para produção, adiciona:
+                    
+                    const MinifyPlugin = require(babel-minify-webpack-plugin')
+
+                    ...
+                     plugins:[
+                        ...
+                        new MinifyPlugin()
+                        ...
+                     ]
+                     ...
+
+            Adicionando Compressão GZIP:
+                npm install compression-webpack-plugin
+                npm install express-static-gzip
+
+                no arquivo de configuração do webpack: webpack.prod.js
+               
+               ...
+                plugins:[
+                   ...
+                    new MinifyPlugin(),
+                    new CompressionPlugin({
+                        algorithm: "gzip"
+                    }),
+                    ...
+                ]
+                ...
+
+                na configuração do servidor express.js
+                    const expressStaticGzip = require('express-static-gzip'); 
+                    ...
+                    server.use(expressStaticGzip("dist"));
+                    
+
+            Adicionando Compressão Brotli:
+                npm install brotli-webpack-plugin
+
+                no arquivo de configuração do webpack: webpack.prod.js
+               
+               ...
+                plugins:[
+                   ...
+                    new CompressionPlugin({
+                        algorithm: "gzip"
+                    }),
+                    new BrotliPlugin()
+
+                    ...
+                ]
+                ...
+
+                na configuração do servidor express.js
+                    const expressStaticGzip = require('express-static-gzip');  
+                    ...
+                    server.use( 
+                        expressStaticGzip("dist", { 
+                                enableBrotli:true 
+                            } 
+                        ) 
+                    ); 
+
+        Usando linguagem de marcação - Markdown:
+            npm install markdown-with-front-matter-loader
+
+            no arquivo de configuração do webpack: webpack.config.js
+                 ...
+                module:{
+                    rules:[
+                        {   //markdown loader
+                            test: /\.md$/,
+                            use:[
+                                {
+                                    loader: "markdown-with-front-matter-loader"
+ 
+                                },
+                            ]
+                        }
+                    ]
+                }
+                ...
+
+            arquivo markdown: post.md 
+                ---                                    // entre as 3 linhas são os metadados                     
+                title: Título da página
+                author: Rene
+                ---
+                
+                # titulo h1     // # Cada hash representa o nível do titulo #(h1), ##(h2) ...
+
+                paragrafo       // sem nada é uma tag <p>
+
+
+            Usando Markdown com o react:
+                import React from 'react';
+                import MarkdownData from "../../data/post.md";
+
+                export default class AppRoot extends React.Component {
+                    constructor(props){
+                        super(props)
+                        this.state ={
+                        }
+                    }
+
+                    render(){
+                        return(
+                            <div className="profile">
+                                <img src={require("../images/1100px-Ser-wiki.png")} />
+                                <h1>{MarkdownData.title}</h1>
+                                <h2>{MarkdownData.author}</h2>
+                                <div className="content" dangerouslySetInnerHTML={{__html:MarkdownData.__content}}></div>
+                            </div>    
+                        )
+                    }
+                }
+        
+        Bundle Analyzer
+            npm install webpack-bundle-analyzer
+
+            no arquivo de configuraçãodo webpack - webpack.config.js:
+                ...
+                plugins:[
+                    ...
+                    new BundleAnalyzerPlugin({
+                        generateStatsFile: true
+                    })
+                ]   
+                ...
+        Split Chunks (separando bundles)
+            no arquivo de configuraçãodo webpack - webpack.config.js:
+                ...
+                devServer: {
+                    ...
+                },
+
+                optimization:{
+                    splitChunks:{
+                        chunks: "all", // "initial" - somente os chunks iniciais, "async" - sob demanda, "all" - todos os chunks
+                        automaticNameDelimiter: "-",
+                        cacheGroups:{
+                            vendor:{
+                                name:"vendor",
+                                chunks: "initial",
+                                minChunks:2
+                            }
+                        }
+                    }
+                },
+
+                algumas configurações:
+                    minSize (default: 30000) Minimum size for a chunk.
+                    minChunks (default: 1) Minimum number of chunks that share a module before splitting
+                    maxInitialRequests (default 3) Maximum number of parallel requests at an entrypoint
+                    maxAsyncRequests (default 5) Maximum number of parallel requests at on-demand loading
+
+                mais informações na documentação oficial : https://webpack.js.org/plugins/split-chunks-plugin/
+        
+        
+        Server-side render:
+            React:
+
+                para rodar o react no servidor devemos:
+                    no arquvio do servidor(express.js):
+                        import React from 'react';
+                        import ReactDOMServer from 'react-dom/server'
+                        import AppRoot from '../src/components/AppRoot'
+
+                        ...
+
+                        server.get("*", (req, res) =>{
+                            const html = ReacDOMServer.renderToString(<AppRoot/>);
+                            res.send(html);
+                        })
+
+                        ...
+            Usando Markdown:
+                webpack-node-externals: When bundling with Webpack for the backend - you usually don't want to bundle
+                its node_modules dependencies. This library creates an externals function that ignores node_modules
+                when bundling in Webpack.
+
+                É necessio criar um arquivo de configuração para rodar compilar o backend, com o target setado para "node"
+                e importar o webpack-node-externals:
+                    
+                    ...
+
+                    const nodeExternals = require('webpack-node-externals');
+                    
+                    ...
+
+                    entry: {
+                        server: [
+                            "./src/server/main.js"
+                        ],
+                    },
+
+                    mode: "production",
+                
+                    target: "node", //para não compilar para o browser
+
+                    externals: nodeExternals(), // ignorar nod_modules na compilação
+
+                    ...
+
+                    no arquivo do package.json:
+
+                    "build:server": "NODE_ENV=production webpack --config=config/webpack.server.js --env.NODE_ENV=production --watch", 
+                    para gerar o bundle do servidor 
+
+                    "dev": "nodemon --inspect --watch config  --watch build build/server-bundle.js", 
+                    "prod": "NODE_ENV=production node build/server-bundle.js" 
+                    para os bundles de cliente, em dev e produção
+                        

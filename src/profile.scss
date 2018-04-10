@@ -1,0 +1,20 @@
+.profile{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    flex-flow: column;
+
+    img{
+        border-radius: 100%;
+        width: 300px;
+        box-shadow: 0 0 20px black;
+    }
+    
+    a{
+        color: white;
+        padding: 10px 20px;
+        cursor: pointer;
+    }
+}
+
